@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -74,12 +75,16 @@ func main() {
 	var (
 		forumUrl      = flag.String("forum-url", "", "(Sub-)Forum URL")
 		matchListPath = flag.String("match-list", "matches.lst", "Match list")
-
-		baseUrl string
+		debug         = flag.Bool("debug", false, "Enable debug output.")
+		baseUrl       string
 	)
 
 	flag.StringVar(&baseUrl, "base-url", "", "Base URL")
 	flag.Parse()
+
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	matchList, err := readMatchList(*matchListPath)
 	if err != nil {
@@ -109,14 +114,18 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	// VBulletin-specific
 	links := getLinkNodes(doc, "id", "thread_title")
 
 	for text, href := range links {
+		log.Debugf("Checking link with text %q", text)
+
 		for _, m := range matchList {
 			if strings.Contains(text, m) {
 				// provide link to last page in thread
 				url := baseUrl + "/" + href + "&page=1000"
-				log.Infof("Found match for %q: %s", m, url)
+				log.Debugf("Found match for %q", m)
+				fmt.Println(url)
 			}
 		}
 	}
