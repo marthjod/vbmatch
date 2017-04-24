@@ -2,23 +2,31 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strings"
+
 	log "github.com/Sirupsen/logrus"
 	"golang.org/x/net/html"
-	"net/http"
-	"strings"
 )
 
-func getLinkTexts(doc *html.Node) []string {
+func getLinkNodes(doc *html.Node, attr, attrPrefix string) map[string]string {
 
 	var (
 		f     func(*html.Node)
-		links = []string{}
+		links = map[string]string{}
 	)
 
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "a" {
-			if found, text := getLinkText(n, "id", "thread_title"); found {
-				links = append(links, text)
+			if found, text, node := getLinkNode(n, attr, attrPrefix); found {
+				for _, a := range node.Attr {
+					if a.Key == "href" {
+						links[text] = a.Val
+					}
+				}
+
 			}
 		}
 
@@ -32,32 +40,65 @@ func getLinkTexts(doc *html.Node) []string {
 	return links
 }
 
-func getLinkText(n *html.Node, attr, attrPrefix string) (bool, string) {
+func getLinkNode(n *html.Node, attr, attrPrefix string) (bool, string, *html.Node) {
 	for _, a := range n.Attr {
 		if a.Key == attr && strings.HasPrefix(a.Val, attrPrefix) {
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
 				if c.Type == html.TextNode {
-					return true, c.Data
+					return true, c.Data, n
 				}
 			}
 		}
 	}
 
-	return false, ""
+	return false, "", &html.Node{}
+}
+
+func readMatchList(path string) (matchList []string, err error) {
+	f, err := ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	temp := strings.Split(string(f), "\n")
+	for _, el := range temp {
+		if el != "" && !strings.HasPrefix(el, "#") {
+			matchList = append(matchList, el)
+		}
+	}
+
+	return matchList, nil
 }
 
 func main() {
 	var (
-		url = flag.String("url", "", "URL")
+		forumUrl      = flag.String("forum-url", "", "(Sub-)Forum URL")
+		matchListPath = flag.String("match-list", "matches.lst", "Match list")
+
+		baseUrl string
 	)
 
+	flag.StringVar(&baseUrl, "base-url", "", "Base URL")
 	flag.Parse()
 
-	if *url == "" {
+	matchList, err := readMatchList(*matchListPath)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	if *forumUrl == "" {
 		log.Fatal("URL cannot be empty.")
 	}
 
-	resp, err := http.Get(*url)
+	if baseUrl == "" {
+		u, err := url.Parse(*forumUrl)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		baseUrl = u.Scheme + "://" + u.Host
+	}
+
+	resp, err := http.Get(*forumUrl)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -68,10 +109,16 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	links := getLinkTexts(doc)
+	links := getLinkNodes(doc, "id", "thread_title")
 
-	for _, link := range links {
-		log.Info(link)
+	for text, href := range links {
+		for _, m := range matchList {
+			if strings.Contains(text, m) {
+				// provide link to last page in thread
+				url := baseUrl + "/" + href + "&page=1000"
+				log.Infof("Found match for %q: %s", m, url)
+			}
+		}
 	}
 
 }
