@@ -8,13 +8,7 @@ Find matching thread titles on VBulletin boards, then generate quicklinks for ea
 go get -u
 ```
 
-## Example
-
-```bash
-# matches.lst
-Blog
-Version
-```
+## Usage
 
 ```bash
 Usage of ./vbmatch:
@@ -26,14 +20,6 @@ Usage of ./vbmatch:
     	(Sub-)Forum URL
   -match-list string
     	Match list (default "matches.lst")
-
-
-./vbmatch \
-  -forum-url "http://forum.vbulletin-germany.com/forumdisplay.php/112-vBulletin-Blog-Fragen-und-Probleme" \
-  -debug
-
-DEBU[0000] Found match for "Blog"
-http://forum.vbulletin-germany.com/showthread.php/54680-gel%C3%B6schte-Blogeintr%C3%A4ge-bleiben-in-der-Sidebar-sichtbar?s=02df905fa8d054a9b51ce6637243d648&page=1000
-...
 ```
 
+See [example](https://github.com/marthjod/vbmatch/tree/master/example) for an example.
